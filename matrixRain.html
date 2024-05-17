@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>canvas-demo-char-rain-2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app" style="width:100%;height:100%">
+
+  </div>
+  <script>
+    let animate;
+    const delay = 2000,
+      textString = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]\{}<>",
+      fontColors = ["#5dacdf", "#e7bb31"],
+      fontStyle = "bold 13px 微软雅黑",
+      charHeight = 18,
+      fontSpeed = charHeight * 0.3,  // 文字下落速度
+      sendTime = 0.8,   // 追加下一列数据的百分比时机
+      alphaSpeed = 0.01,  // 透明度减少的速度，越小拖尾越长
+      miniAlpha = 0.1; // 追加下一列之前的最小透明度
+    let textData = {},
+      ctx;
+
+    window.onresize = function () {
+      if (animate) {
+        cancelAnimationFrame(animate);
+        animate = null;
+      }
+      init()
+    }
+
+    setTimeout(init, delay)
+
+
+
+    function init() {
+      let canvas = document.querySelector("canvas#bg");
+      canvas && document.documentElement.removeChild(canvas);
+      canvas = document.createElement('canvas');
+      const { clientWidth: width, clientHeight: height } = document.documentElement;
+      canvas.width = width;
+      canvas.height = height;
+      canvas.id = 'bg';
+      canvas.style.backgroundColor = "black";
+      document.documentElement.appendChild(canvas)
+
+      ctx = canvas.getContext("2d"),
+        maxLength = Math.floor(height / charHeight);
+
+      // 初始化数据
+      for (let x = 0; x < width; x += charHeight) {
+        textData[x] = [];
+        textData[x][0] = getXData(x, maxLength);
+      }
+      play(ctx, width, height);
+    }
+
+    function play(ctx, width, height) {
+      if(!ctx) return;
+      const maxLength = Math.floor(height / charHeight);
+      ctx.clearRect(0, 0, width, height);
+      const xSet = Object.keys(textData);
+      for (let xIndex = 0; xIndex < xSet.length - 1; xIndex++) {
+        const x = xSet[xIndex];
+        const xDatas = textData[x];
+        xDatas.splice(0, xDatas.length - 3);
+        for (let yDataIndex = 0; yDataIndex < xDatas.length; yDataIndex++) {
+          // 单列渲染
+          let yData = xDatas[yDataIndex];
+          ctx.font = fontStyle;
+          ctx.fillStyle = yData.fontColor;
+          // 累加字符
+          const { dataLength, data } = yData;
+          yData.lastY += fontSpeed;
+          const lastYIndex = Math.min(Math.floor(yData.lastY / charHeight), dataLength);
+          if (!yData.hasShow && lastYIndex / dataLength >= sendTime) {
+            xDatas.push(getXData(x, maxLength));
+            yData.hasShow = true;
+          }
+
+          for (let i = 0; i < lastYIndex; i++) {
+            const nextAlpha = data[i].alpha - alphaSpeed;
+            data[i].alpha = Math.max(lastYIndex <= dataLength ? Math.max(nextAlpha, miniAlpha) : nextAlpha, 0);
+            ctx.globalAlpha = data[i].alpha;
+            ctx.fillText(data[i].text, x, (i + 1) * charHeight);
+          }
+        }
+      }
+      animate = requestAnimationFrame(()=>{
+        play(ctx, width, height)
+      })
+    }
+
+    function getXData(x, maxLength) {
+      const length = Math.round(0.5 * maxLength + 0.5 * maxLength * Math.random());
+      return {
+        fontColor: fontColors[Math.round(Math.random())],
+        data: getRandomString(length).split("").map(v => ({
+          text: v,
+          alpha: 1
+        })),
+        dataLength: length,
+        lastY: 0,
+        hasShow: false
+
+      };
+    }
+
+    function getRandomString(min, max) {
+      let returnStr = "",
+        range = (max ? Math.round(Math.random() * (max - min)) + min : min),
+        charStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]\{}<>';
+
+      for (let i = 0; i < range; i++) {
+        let index = Math.round(Math.random() * (charStr.length - 1));
+        returnStr += charStr.substring(index, index + 1);
+      }
+      return returnStr;
+    }
+  </script>
+</body>
+
+</html>
